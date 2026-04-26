@@ -6,7 +6,10 @@ project_metadata:
 
 rag_module:
   pdf_source_path: "./Document/"
-  vector_db_path: "./vector_store/chroma_db"
+  vector_store_backend: "chroma" # Options: chroma, faiss
+  vector_store_paths:
+    chroma: "./vector_store/chroma_db"
+    faiss: "./vector_store/faiss_index"
   provider: "ollama" # Options: ollama, openai
   embedding_provider: "ollama" # Options: ollama, openai
   ollama:

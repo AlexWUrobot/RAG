@@ -22,6 +22,7 @@ from dotenv import load_dotenv
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
 from langchain_community.retrievers import BM25Retriever
+from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -249,7 +250,7 @@ class RAGPipeline:
         self.chroma_settings = self._build_chroma_settings()
         self.embeddings = self._build_embeddings()
         self.llm = self._build_llm()
-        self.vector_store: Chroma | None = None
+        self.vector_store = None
         self.bm25_retriever: BM25Retriever | None = None
         self.ensemble_retriever: EnsembleRetriever | None = None
         self._chunks: list[Document] = []
@@ -324,6 +325,58 @@ class RAGPipeline:
             temperature=0,
         )
 
+    @staticmethod
+    def _get_vector_store_backend() -> str:
+        return rag_cfg.get("vector_store_backend", "chroma").lower()
+
+    @staticmethod
+    def _get_vector_store_path() -> str:
+        backend = RAGPipeline._get_vector_store_backend()
+        path_map = rag_cfg.get("vector_store_paths", {})
+        if backend in path_map:
+            return path_map[backend]
+        return rag_cfg.get("vector_db_path", "./vector_store/chroma_db")
+
+    def _create_vector_store(self, documents: list[Document]):
+        backend = self._get_vector_store_backend()
+        store_path = self._get_vector_store_path()
+
+        if backend == "faiss":
+            os.makedirs(store_path, exist_ok=True)
+            vector_store = FAISS.from_documents(documents, self.embeddings)
+            vector_store.save_local(store_path)
+            return vector_store
+
+        if backend == "chroma":
+            return Chroma.from_documents(
+                documents=documents,
+                embedding=self.embeddings,
+                client_settings=self.chroma_settings,
+                persist_directory=store_path,
+            )
+
+        raise ValueError(f"Unsupported vector_store_backend: {backend}")
+
+    def _load_vector_store(self):
+        backend = self._get_vector_store_backend()
+        store_path = self._get_vector_store_path()
+
+        if backend == "faiss":
+            return FAISS.load_local(
+                store_path,
+                self.embeddings,
+                allow_dangerous_deserialization=True,
+            )
+
+        if backend == "chroma":
+            return Chroma(
+                persist_directory=store_path,
+                client_settings=self.chroma_settings,
+                embedding_function=self.embeddings,
+            )
+
+        raise ValueError(f"Unsupported vector_store_backend: {backend}")
+
     # ---- Ingestion --------------------------------------------------------
 
     def ingest(self, source_path: str | None = None):
@@ -336,13 +389,8 @@ class RAGPipeline:
         if not self._chunks:
             raise ValueError(f"No content extracted from PDFs in {source_path}")
 
-        # -- ChromaDB vector store (semantic) --
-        self.vector_store = Chroma.from_documents(
-            documents=self._chunks,
-            embedding=self.embeddings,
-            client_settings=self.chroma_settings,
-            persist_directory=rag_cfg["vector_db_path"],
-        )
+        # -- Vector store (semantic) --
+        self.vector_store = self._create_vector_store(self._chunks)
 
         # -- BM25 keyword index --
         self._build_hybrid_retriever()
@@ -351,11 +399,7 @@ class RAGPipeline:
 
     def load_existing(self, source_path: str | None = None):
         """Load a persisted ChromaDB store and rebuild the BM25 index."""
-        self.vector_store = Chroma(
-            persist_directory=rag_cfg["vector_db_path"],
-            client_settings=self.chroma_settings,
-            embedding_function=self.embeddings,
-        )
+        self.vector_store = self._load_vector_store()
         # BM25 is in-memory only → rebuild from source PDFs
         source_path = source_path or rag_cfg["pdf_source_path"]
         if os.path.isdir(source_path):

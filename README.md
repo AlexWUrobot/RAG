@@ -8,7 +8,7 @@ The RAG pipeline now supports a provider switch with `ollama` as the default run
 
 - PDF ingestion with PyMuPDF
 - Table preservation for technical datasheets
-- ChromaDB vector store
+- Switchable vector store backend: ChromaDB or FAISS
 - Hybrid retrieval with semantic search plus BM25
 - Query expansion for broad topics and technical acronyms
 - Candidate reranking to prioritize the most relevant technical chunks
@@ -45,6 +45,10 @@ The default configuration in [config.yaml](config.yaml) uses Ollama:
 
 ```yaml
 rag_module:
+  vector_store_backend: "chroma"
+  vector_store_paths:
+    chroma: "./vector_store/chroma_db"
+    faiss: "./vector_store/faiss_index"
   provider: "ollama"
   embedding_provider: "ollama"
   ollama:
@@ -52,6 +56,18 @@ rag_module:
     llm_model: "llama3"
     embedding_model: "nomic-embed-text"
 ```
+
+To switch the vector database backend, change the backend in [config.yaml](config.yaml):
+
+```yaml
+rag_module:
+  vector_store_backend: "faiss"
+```
+
+Recommendation:
+
+- ChromaDB is the better default here if you want easier persistence, collection management, and future metadata filtering.
+- FAISS is a good choice if you want a lightweight local vector index with minimal moving parts and fast similarity search.
 
 To switch to OpenAI, change the providers in [config.yaml](config.yaml):
 
