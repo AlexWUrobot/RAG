@@ -1,0 +1,47 @@
+# SensorDoc-AI Configuration System
+
+project_metadata:
+  name: "SensorDoc-AI"
+  version: "1.0.0"
+
+rag_module:
+  pdf_source_path: "./Document/"
+  vector_db_path: "./vector_store/chroma_db"
+  provider: "ollama" # Options: ollama, openai
+  embedding_provider: "ollama" # Options: ollama, openai
+  ollama:
+    base_url: "http://localhost:11434"
+    llm_model: "llama3"
+    embedding_model: "nomic-embed-text"
+  openai:
+    llm_model: "gpt-4o"
+    embedding_model: "text-embedding-3-small"
+  retrieval_settings:
+    top_k: 5
+    search_type: "hybrid" # Options: semantic, keyword, hybrid
+    rerank_enabled: true
+  security:
+    prompt_injection_guard: true
+    block_suspicious_queries: true
+
+ml_automation:
+  model_type: "XGBoost"
+  data_path: "./data/sensor_logs/test_data.csv"
+  optuna_settings:
+    n_trials: 50
+    metric: "f1_score"
+    timeout: 3600 # 1 hour
+  
+  # Default/Baseline Hyperparameters
+  hyperparameters:
+    eta: 0.05
+    max_depth: 6
+    subsample: 0.8
+    objective: "binary:logistic"
+
+automation_interfaces:
+  api_host: "0.0.0.0"
+  api_port: 8000
+  log_level: "INFO"
+  security:
+    use_env_secrets: true
