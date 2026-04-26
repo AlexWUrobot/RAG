@@ -12,6 +12,7 @@ The RAG pipeline now supports a provider switch with `ollama` as the default run
 - Hybrid retrieval with semantic search plus BM25
 - Query expansion for broad topics and technical acronyms
 - Candidate reranking to prioritize the most relevant technical chunks
+- LangGraph-based agent router for guarded tool-use and intent routing
 - Local-first inference with Ollama at `http://localhost:11434`
 - Prompt-injection guard to block secret-exfiltration attempts and sanitize retrieved context
 
@@ -99,12 +100,27 @@ This builds the ChromaDB store under `./vector_store/chroma_db`.
 python rag_pipeline.py
 ```
 
+To run the LangGraph router on top of the RAG pipeline:
+
+```bash
+python langgraph_router.py
+```
+
 Example:
 
 ```python
 from rag_pipeline import query_sensor_info
 
 answer = query_sensor_info("What is the I2C address?")
+print(answer)
+```
+
+LangGraph router example:
+
+```python
+from langgraph_router import agent_query
+
+answer = agent_query("The SPI interface is only available on the MPU-6000, not the MPU-6050?")
 print(answer)
 ```
 
@@ -130,6 +146,19 @@ This improves two common failure modes:
 
 - retrieval misses the right chunk because the user used a broad phrase or acronym
 - retrieval returns loosely related chunks and the model answers from the wrong one
+
+## Agent Router
+
+The repository also includes a LangGraph-based router in [langgraph_router.py](langgraph_router.py).
+
+It uses a bounded state graph to:
+
+- block prompt-injection or secret-seeking requests before retrieval
+- classify whether a question is likely a datasheet question or out of scope
+- call the existing RAG pipeline only when the question should use datasheet retrieval
+- return a safe fallback for weather, chit-chat, or unrelated requests
+
+This keeps tool-use explicit and avoids free-form looping. The graph has fixed nodes and no unbounded recursive retry path.
 
 ## Secret Management
 
