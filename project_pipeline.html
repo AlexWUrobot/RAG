@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SensorDoc-AI Pipeline</title>
+  <style>
+    :root {
+      --bg: #f5f1e8;
+      --panel: #fffdf8;
+      --ink: #16212f;
+      --muted: #51606f;
+      --line: #23364a;
+      --accent: #d96b27;
+      --accent-2: #2f7d6b;
+      --accent-3: #5d4db5;
+      --shadow: rgba(19, 27, 37, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at top left, rgba(217, 107, 39, 0.12), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(47, 125, 107, 0.12), transparent 35%),
+        var(--bg);
+      font-family: "DejaVu Sans", "Liberation Sans", sans-serif;
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    html {
+      overflow: hidden;
+    }
+
+    .frame {
+      width: 1860px;
+      height: 1080px;
+      padding: 42px;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .title {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+    }
+
+    .subtitle {
+      font-size: 18px;
+      fill: var(--muted);
+    }
+
+    .panel {
+      fill: var(--panel);
+      stroke: var(--line);
+      stroke-width: 2;
+      rx: 24;
+      filter: drop-shadow(0 14px 28px var(--shadow));
+    }
+
+    .section-label {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      fill: var(--muted);
+    }
+
+    .box {
+      fill: #fffefb;
+      stroke: var(--line);
+      stroke-width: 2;
+      rx: 18;
+    }
+
+    .box.orange {
+      fill: rgba(217, 107, 39, 0.09);
+      stroke: var(--accent);
+    }
+
+    .box.green {
+      fill: rgba(47, 125, 107, 0.09);
+      stroke: var(--accent-2);
+    }
+
+    .box.purple {
+      fill: rgba(93, 77, 181, 0.08);
+      stroke: var(--accent-3);
+    }
+
+    .box-title {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    .box-body {
+      font-size: 17px;
+      fill: var(--muted);
+    }
+
+    .small {
+      font-size: 15px;
+      fill: var(--muted);
+    }
+
+    .arrow {
+      fill: none;
+      stroke: var(--line);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      marker-end: url(#arrowhead);
+    }
+
+    .arrow-label {
+      font-size: 15px;
+      font-weight: 700;
+      fill: var(--line);
+    }
+
+    .pill {
+      fill: rgba(22, 33, 47, 0.06);
+      stroke: none;
+      rx: 999;
+    }
+
+    .pill-text {
+      font-size: 14px;
+      font-weight: 700;
+      fill: var(--ink);
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <svg viewBox="0 0 1860 1080" xmlns="http://www.w3.org/2000/svg" aria-labelledby="title subtitle" role="img">
+      <defs>
+        <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+          <path d="M0,0 L7,3.5 L0,7 z" fill="#23364a"></path>
+        </marker>
+      </defs>
+
+      <text id="title" x="40" y="54" class="title">SensorDoc-AI Current Project Pipeline</text>
+      <text id="subtitle" x="40" y="88" class="subtitle">Local-first hardware datasheet RAG with LangGraph routing, guardrails, hybrid retrieval, and configurable vector storage.</text>
+
+      <rect x="36" y="126" width="1788" height="900" class="panel" />
+
+      <text x="78" y="170" class="section-label">Inputs</text>
+      <rect x="70" y="194" width="300" height="166" class="box orange" />
+      <text x="96" y="236" class="box-title">PDF Datasheets</text>
+      <text x="96" y="272" class="box-body">Document/*.pdf</text>
+      <text x="96" y="302" class="box-body">PyMuPDF text extraction</text>
+      <text x="96" y="332" class="box-body">Table preservation into chunks</text>
+
+      <rect x="70" y="404" width="300" height="166" class="box orange" />
+      <text x="96" y="446" class="box-title">Runtime Config</text>
+      <text x="96" y="482" class="box-body">config.yaml</text>
+      <text x="96" y="512" class="box-body">provider: Ollama or OpenAI</text>
+      <text x="96" y="542" class="box-body">backend: Chroma or FAISS</text>
+
+      <rect x="70" y="614" width="300" height="166" class="box orange" />
+      <text x="96" y="656" class="box-title">User Question</text>
+      <text x="96" y="692" class="box-body">CLI / function call</text>
+      <text x="96" y="722" class="box-body">rag_pipeline.py or</text>
+      <text x="96" y="752" class="box-body">langgraph_router.py</text>
+
+      <text x="456" y="170" class="section-label">Index Build</text>
+      <rect x="436" y="194" width="356" height="250" class="box green" />
+      <text x="462" y="236" class="box-title">Ingestion Pipeline</text>
+      <text x="462" y="272" class="box-body">Load PDFs and split into</text>
+      <text x="462" y="302" class="box-body">overlapping chunks</text>
+      <text x="462" y="336" class="box-body">Chunk size: 1000 / overlap: 200</text>
+      <text x="462" y="366" class="box-body">Embeddings via Ollama or OpenAI</text>
+      <text x="462" y="396" class="box-body">Persist vector index</text>
+      <rect x="462" y="410" width="132" height="36" class="pill" />
+      <text x="485" y="433" class="pill-text">chroma_db</text>
+      <rect x="610" y="410" width="110" height="36" class="pill" />
+      <text x="639" y="433" class="pill-text">faiss</text>
+
+      <text x="456" y="522" class="section-label">Agent Layer</text>
+      <rect x="408" y="548" width="388" height="248" class="box purple" />
+      <text x="462" y="590" class="box-title">LangGraph Router</text>
+      <text x="462" y="626" class="box-body">1. Guard suspicious requests</text>
+      <text x="462" y="656" class="box-body">2. Classify datasheet vs out-of-scope</text>
+      <text x="462" y="686" class="box-body">3. Call RAG only for allowed</text>
+      <text x="462" y="716" class="box-body">technical questions</text>
+      <text x="462" y="746" class="box-body">4. Return safe fallback otherwise</text>
+      <rect x="462" y="764" width="106" height="30" class="pill" />
+      <text x="487" y="784" class="pill-text">blocked</text>
+      <rect x="582" y="764" width="126" height="30" class="pill" />
+      <text x="614" y="784" class="pill-text">datasheet</text>
+
+      <text x="964" y="170" class="section-label">Retrieval Core</text>
+      <rect x="938" y="194" width="408" height="586" class="box" />
+      <text x="964" y="236" class="box-title">Deterministic RAG Pipeline</text>
+      <text x="964" y="276" class="box-body">1. Validate query with PromptInjectionGuard</text>
+      <text x="964" y="314" class="box-body">2. Expand query for acronyms</text>
+      <text x="964" y="344" class="box-body">   and broad topics</text>
+      <text x="964" y="382" class="box-body">3. Run hybrid retrieval:</text>
+      <text x="994" y="412" class="box-body">semantic vector search</text>
+      <text x="994" y="442" class="box-body">BM25 keyword search</text>
+      <text x="964" y="480" class="box-body">4. Merge and rerank candidate chunks</text>
+      <text x="964" y="518" class="box-body">5. Sanitize retrieved context</text>
+      <text x="964" y="556" class="box-body">6. Generate answer with</text>
+      <text x="964" y="586" class="box-body">   Ollama or OpenAI</text>
+      <text x="964" y="624" class="box-body">7. Sanitize response before returning</text>
+
+      <rect x="966" y="680" width="138" height="34" class="pill" />
+      <text x="989" y="702" class="pill-text">query expansion</text>
+      <rect x="1118" y="680" width="126" height="34" class="pill" />
+      <text x="1152" y="702" class="pill-text">BM25</text>
+      <rect x="966" y="728" width="152" height="34" class="pill" />
+      <text x="999" y="750" class="pill-text">vector search</text>
+      <rect x="1132" y="728" width="128" height="34" class="pill" />
+      <text x="1160" y="750" class="pill-text">rerank</text>
+
+      <text x="1518" y="170" class="section-label">Outputs</text>
+      <rect x="1446" y="236" width="320" height="156" class="box green" />
+      <text x="1492" y="278" class="box-title">Grounded Answer</text>
+      <text x="1472" y="318" class="box-body">Technical response from</text>
+      <text x="1472" y="348" class="box-body">retrieved datasheet context only</text>
+
+      <rect x="1446" y="426" width="320" height="142" class="box purple" />
+      <text x="1492" y="462" class="box-title">Safe Fallback</text>
+      <text x="1492" y="498" class="box-body">Out-of-scope refusal or</text>
+      <text x="1492" y="528" class="box-body">prompt-injection block</text>
+
+      <rect x="1446" y="610" width="320" height="156" class="box orange" />
+      <text x="1472" y="646" class="box-title">Interactive Demo</text>
+      <text x="1472" y="676" class="box-title">Paths</text>
+      <text x="1472" y="714" class="box-body">datasheet question</text>
+      <text x="1472" y="744" class="box-body">out-of-scope question</text>
+
+      <path d="M370 277 C 400 277, 398 277, 436 277" class="arrow" />
+      <text x="372" y="258" class="arrow-label">ingest</text>
+
+      <path d="M370 487 C 430 487, 790 487, 938 487" class="arrow" />
+      <text x="538" y="468" class="arrow-label">provider + backend settings</text>
+
+      <path d="M370 697 C 404 697, 402 666, 436 666" class="arrow" />
+      <text x="360" y="734" class="arrow-label">question</text>
+
+      <path d="M796 664 C 842 664, 888 664, 938 664" class="arrow" />
+      <text x="804" y="644" class="arrow-label">datasheet route</text>
+
+      <path d="M1346 360 C 1390 360, 1422 330, 1446 328" class="arrow" />
+      <text x="1358" y="334" class="arrow-label">answer</text>
+
+      <path d="M796 744 C 1010 872, 1210 872, 1446 688" class="arrow" />
+      <text x="1106" y="884" class="arrow-label">out-of-scope or blocked</text>
+
+      <path d="M792 260 C 850 260, 904 300, 938 300" class="arrow" />
+      <text x="804" y="240" class="arrow-label">existing index</text>
+
+      <text x="80" y="972" class="small">Core files: rag_pipeline.py, langgraph_router.py, config.yaml, Document/, vector_store/</text>
+      <text x="80" y="1000" class="small">Default local runtime: Ollama at localhost:11434 with llama3 and nomic-embed-text.</text>
+    </svg>
+  </div>
+</body>
+</html>

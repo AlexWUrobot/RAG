@@ -16,6 +16,14 @@ The RAG pipeline now supports a provider switch with `ollama` as the default run
 - Local-first inference with Ollama at `http://localhost:11434`
 - Prompt-injection guard to block secret-exfiltration attempts and sanitize retrieved context
 
+## Project Pipeline
+
+The current end-to-end pipeline is illustrated below.
+
+![SensorDoc-AI project pipeline](./project_pipeline.png)
+
+The editable diagram source is kept in [project_pipeline.html](project_pipeline.html).
+
 ## Requirements
 
 - Python 3.10+
