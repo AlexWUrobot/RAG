@@ -10,6 +10,8 @@ The RAG pipeline now supports a provider switch with `ollama` as the default run
 - Table preservation for technical datasheets
 - ChromaDB vector store
 - Hybrid retrieval with semantic search plus BM25
+- Query expansion for broad topics and technical acronyms
+- Candidate reranking to prioritize the most relevant technical chunks
 - Local-first inference with Ollama at `http://localhost:11434`
 - Prompt-injection guard to block secret-exfiltration attempts and sanitize retrieved context
 
@@ -99,6 +101,19 @@ The pipeline includes a guardrail layer that:
 - blocks responses that appear to contain API keys or secret names
 
 This does not replace proper secret management. Keep credentials in environment variables and do not store them in PDFs or source files.
+
+## Retrieval Strategy
+
+The RAG pipeline uses three retrieval-hardening steps to reduce missed or incorrect answers:
+
+- Query expansion: a user question is expanded into multiple variants such as acronym expansions, interface aliases, and summary-oriented forms.
+- Hybrid search: each expanded query goes through semantic retrieval plus BM25 keyword retrieval.
+- Rerank: all candidate chunks are merged, deduplicated, and reranked so exact protocol, address, and pin-level matches are prioritized before generation.
+
+This improves two common failure modes:
+
+- retrieval misses the right chunk because the user used a broad phrase or acronym
+- retrieval returns loosely related chunks and the model answers from the wrong one
 
 ## Secret Management
 

@@ -19,6 +19,8 @@ rag_module:
   retrieval_settings:
     top_k: 5
     search_type: "hybrid" # Options: semantic, keyword, hybrid
+    query_expansion_enabled: true
+    max_expanded_queries: 8
     rerank_enabled: true
   security:
     prompt_injection_guard: true

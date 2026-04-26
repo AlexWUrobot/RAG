@@ -199,6 +199,51 @@ def chunk_documents(documents: list[Document]) -> list[Document]:
 class RAGPipeline:
     """End-to-end Retrieval-Augmented Generation pipeline."""
 
+    TECHNICAL_SYNONYMS = {
+        "i2c": [
+            "i2c",
+            "inter integrated circuit",
+            "sda scl bus",
+            "i2c address communication protocol",
+        ],
+        "spi": [
+            "spi",
+            "serial peripheral interface",
+            "sclk sdi sdo cs",
+            "spi communication protocol",
+        ],
+        "uart": [
+            "uart",
+            "serial interface tx rx",
+            "universal asynchronous receiver transmitter",
+        ],
+        "uwb": [
+            "uwb",
+            "ultra wideband",
+            "precision finding proximity",
+        ],
+        "airtag": [
+            "airtag",
+            "airtag device overview",
+            "airtag support handling ultra wideband",
+        ],
+        "imu": [
+            "imu",
+            "inertial measurement unit",
+            "accelerometer gyroscope motion sensor",
+        ],
+        "mpu-6050": [
+            "mpu-6050",
+            "mpu 6050",
+            "motion processing unit mpu-6050",
+        ],
+        "mpu-6000": [
+            "mpu-6000",
+            "mpu 6000",
+            "motion processing unit mpu-6000",
+        ],
+    }
+
     def __init__(self):
         self._ensure_local_provider_available()
         self.chroma_settings = self._build_chroma_settings()
@@ -443,6 +488,51 @@ class RAGPipeline:
 
         return stripped
 
+    @classmethod
+    def _expand_query_variants(cls, question: str) -> list[str]:
+        stripped = question.strip()
+        base_query = cls._build_search_query(stripped)
+        topic = (cls._extract_topic(stripped) or stripped).strip().lower()
+
+        variants: list[str] = [base_query]
+
+        if topic in cls.TECHNICAL_SYNONYMS:
+            variants.extend(cls.TECHNICAL_SYNONYMS[topic])
+
+        tokens = cls._tokenize(stripped)
+        if "address" in tokens:
+            variants.append(f"{base_query} register address slave address pin configuration")
+        if "protocol" in tokens or topic in {"i2c", "spi", "uart"}:
+            variants.append(f"{base_query} communication protocol timing interface pins")
+        if cls._is_broad_topic_question(stripped):
+            variants.append(f"{topic} overview features specifications usage details")
+
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for variant in variants:
+            normalized = " ".join(variant.split()).strip()
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                deduped.append(normalized)
+        return deduped
+
+    @classmethod
+    def _merge_candidate_docs(cls, doc_groups: list[list[Document]]) -> list[Document]:
+        merged: list[Document] = []
+        seen_keys: set[tuple[str, int, str]] = set()
+
+        for docs in doc_groups:
+            for doc in docs:
+                key = (
+                    str(doc.metadata.get("source", "")),
+                    int(doc.metadata.get("page", -1)),
+                    doc.page_content[:200],
+                )
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    merged.append(doc)
+        return merged
+
     @staticmethod
     def _extract_topic(question: str) -> str | None:
         stripped = question.strip()
@@ -515,8 +605,9 @@ class RAGPipeline:
         ranking_query = broad_topic if broad_topic_question else question
 
         retriever = self._get_retriever()
-        search_query = self._build_search_query(question)
-        retrieved_docs = retriever.invoke(search_query)
+        search_queries = self._expand_query_variants(question)
+        candidate_doc_groups = [retriever.invoke(search_query) for search_query in search_queries]
+        retrieved_docs = self._merge_candidate_docs(candidate_doc_groups)
         reranked_docs = self._rerank_docs(ranking_query, retrieved_docs)
 
         if not reranked_docs:
