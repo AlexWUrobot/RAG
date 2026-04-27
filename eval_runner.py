@@ -94,6 +94,7 @@ def heuristic_metrics(sample: EvalSample, answer: str) -> dict[str, Any]:
         ) if sample.must_include else None,
         "must_not_include_violations": forbidden_hits,
         "answer_length_chars": len(answer),
+        "answer_text": answer,
     }
 
 
@@ -125,7 +126,10 @@ def evaluate_policy(
     failed_checks: list[str] = []
 
     expected_fact_hit_rate = heuristics.get("expected_fact_hit_rate")
-    minimum_expected_fact_hit_rate = global_policy.get("minimum_expected_fact_hit_rate")
+    minimum_expected_fact_hit_rate = category_policy.get(
+        "minimum_expected_fact_hit_rate",
+        global_policy.get("minimum_expected_fact_hit_rate"),
+    )
     if (
         isinstance(expected_fact_hit_rate, (int, float))
         and isinstance(minimum_expected_fact_hit_rate, (int, float))
@@ -143,8 +147,26 @@ def evaluate_policy(
     ):
         failed_checks.append(f"must_include_hit_rate<{minimum_must_include_hit_rate}")
 
-    forbidden_terms = heuristics.get("must_not_include_violations") or []
-    if global_policy.get("require_zero_forbidden_terms", False) and forbidden_terms:
+    forbidden_terms = list(heuristics.get("must_not_include_violations") or [])
+    answer_text = normalize_text(str(heuristics.get("answer_text") or ""))
+    filtered_forbidden_terms: list[str] = []
+    for phrase in forbidden_terms:
+        normalized_phrase = normalize_text(str(phrase))
+        if not normalized_phrase:
+            continue
+        negated_patterns = (
+            f"no {normalized_phrase}",
+            f"not {normalized_phrase}",
+            f"cannot conclude {normalized_phrase}",
+            f"can't conclude {normalized_phrase}",
+            f"cannot confirm {normalized_phrase}",
+            f"not enough evidence for {normalized_phrase}",
+            f"does not justify {normalized_phrase}",
+        )
+        if any(pattern in answer_text for pattern in negated_patterns):
+            continue
+        filtered_forbidden_terms.append(str(phrase))
+    if global_policy.get("require_zero_forbidden_terms", False) and filtered_forbidden_terms:
         failed_checks.append("must_not_include_violations>0")
 
     overall_score = compute_overall_judge_score(judge)

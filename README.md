@@ -344,7 +344,7 @@ Notes:
 
 ## Evaluation
 
-The repository includes a first-pass benchmark in [eval_dataset.jsonl](eval_dataset.jsonl), a formal policy in [eval_policy.json](eval_policy.json), a batch runner in [eval_runner.py](eval_runner.py), and a Markdown report generator in [eval_report.py](eval_report.py).
+The repository includes a formal 25-sample benchmark in [eval_dataset.jsonl](eval_dataset.jsonl), a formal policy in [eval_policy.json](eval_policy.json), a batch runner in [eval_runner.py](eval_runner.py), and a Markdown report generator in [eval_report.py](eval_report.py).
 
 Run the baseline eval pass:
 
@@ -373,8 +373,17 @@ The pass/fail policy is formalized in [eval_policy.json](eval_policy.json):
 
 - heuristic gates: expected-fact hit rate, must-include hit rate, forbidden-term violations
 - category-specific judge thresholds for datasheet QA, XAI via RAG, and safety
+- category-specific heuristic overrides to avoid false failures on refusal-style and judge-approved answers
 - an overall score threshold per category
 - `incomplete` status when final policy judgment is requested but no LLM judge result is present
+
+The generated [eval_report.md](eval_report.md) is designed to be PR-ready and includes:
+
+- release summary
+- category trends
+- fail matrix
+- recommended fixes
+- failed sample drill-downs
 
 Each JSONL row can include:
 

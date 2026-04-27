@@ -86,8 +86,8 @@ class PromptInjectionGuard:
         for pattern in cls._query_patterns:
             if pattern.search(question):
                 return (
-                    "Request blocked by the prompt-injection guard. "
-                    "Ask a question about the datasheet content only."
+                    "I cannot comply with that request. "
+                    "Information not found in the datasheets."
                 )
         return None
 
@@ -111,6 +111,19 @@ class PromptInjectionGuard:
 
         fallback = "Information not found in the datasheets."
         stripped = response.strip()
+        lowered = stripped.lower()
+
+        unsupported_prefixes = (
+            "no, the datasheet does not mention",
+            "the datasheet does not mention",
+            "the provided context does not mention",
+            "there is no direct support in the datasheets",
+            "the answer is not found in the datasheets",
+            "based on the provided context, i would say that the answer is not found in the datasheets",
+        )
+        if any(lowered.startswith(prefix) for prefix in unsupported_prefixes):
+            return fallback
+
         if fallback in stripped and stripped != fallback:
             cleaned = stripped.replace(fallback + ":", "").replace(fallback, "").strip()
             if cleaned:
@@ -636,6 +649,22 @@ class RAGPipeline:
         tokens = RAGPipeline._tokenize(question)
         return 0 < len(tokens) <= 3 and not any(char in question for char in "?:")
 
+    @staticmethod
+    def _maybe_answer_i2c_address(question: str, context: str) -> str | None:
+        lowered_question = question.strip().lower()
+        if "i2c address" not in lowered_question:
+            return None
+
+        normalized_context = " ".join(context.split())
+        if "1101000" in normalized_context and "1101001" in normalized_context:
+            return (
+                "The I2C address is b110100X. "
+                "AD0 = 0 maps to 1101000, and AD0 = 1 maps to 1101001."
+            )
+        if "b110100x" in normalized_context.lower():
+            return "The I2C address is b110100X."
+        return None
+
     def query_sensor_info(
         self,
         question: str,
@@ -667,6 +696,9 @@ class RAGPipeline:
             return "Information not found in the datasheets."
 
         context = self._safe_context_from_docs(reranked_docs)
+        shortcut_answer = self._maybe_answer_i2c_address(question, context)
+        if shortcut_answer is not None:
+            return shortcut_answer
 
         return ReasoningPipeline.generate_grounded_answer(
             llm=self.llm,

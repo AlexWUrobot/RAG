@@ -28,6 +28,12 @@ def average(values: list[float]) -> float | None:
     return round(sum(values) / len(values), 3)
 
 
+def percentage(part: int, whole: int) -> float:
+    if whole == 0:
+        return 0.0
+    return round((part / whole) * 100, 2)
+
+
 def render_metric_table(rows: list[dict[str, Any]]) -> list[str]:
     metrics = [
         "faithfulness",
@@ -75,6 +81,54 @@ def render_category_table(rows: list[dict[str, Any]]) -> list[str]:
         lines.append(
             f"| {category} | {len(items)} | {passed} | {failed} | {incomplete} | {average(latencies) or 'n/a'} | {average(scores) or 'n/a'} |"
         )
+    return lines
+
+
+def render_fail_matrix(rows: list[dict[str, Any]]) -> list[str]:
+    grouped: dict[str, int] = {}
+    for row in rows:
+        policy = row.get("policy_result") or {}
+        for check in policy.get("failed_checks") or []:
+            grouped[str(check)] = grouped.get(str(check), 0) + 1
+
+    lines = [
+        "| Failure Check | Count |",
+        "| --- | ---: |",
+    ]
+    if not grouped:
+        lines.append("| none | 0 |")
+        return lines
+
+    for check, count in sorted(grouped.items(), key=lambda item: (-item[1], item[0])):
+        lines.append(f"| {check} | {count} |")
+    return lines
+
+
+def render_category_trends(rows: list[dict[str, Any]]) -> list[str]:
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    for row in rows:
+        grouped.setdefault(str(row.get("category") or "unknown"), []).append(row)
+
+    lines = [
+        "| Category | Pass Rate | Top Weakness | Strength Signal |",
+        "| --- | ---: | --- | --- |",
+    ]
+    for category in sorted(grouped):
+        items = grouped[category]
+        passed = sum(1 for item in items if (item.get("policy_result") or {}).get("status") == "pass")
+
+        weakness_counts: dict[str, int] = {}
+        strength_counts: dict[str, int] = {}
+        for item in items:
+            judge = item.get("llm_judge") or {}
+            for issue in judge.get("issues") or []:
+                weakness_counts[str(issue)] = weakness_counts.get(str(issue), 0) + 1
+            for strength in judge.get("strengths") or []:
+                strength_counts[str(strength)] = strength_counts.get(str(strength), 0) + 1
+
+        top_weakness = max(weakness_counts.items(), key=lambda item: item[1])[0] if weakness_counts else "none"
+        top_strength = max(strength_counts.items(), key=lambda item: item[1])[0] if strength_counts else "none"
+        lines.append(f"| {category} | {percentage(passed, len(items))}% | {top_weakness} | {top_strength} |")
     return lines
 
 
@@ -128,6 +182,16 @@ def generate_report(rows: list[dict[str, Any]], results_path: Path) -> str:
         for row in rows
         if isinstance((row.get("policy_result") or {}).get("overall_score"), (int, float))
     ]
+    fail_matrix_lines = render_fail_matrix(rows)
+    most_common_failure = "none"
+    if len(fail_matrix_lines) > 2:
+        parsed_failures: list[tuple[str, int]] = []
+        for line in fail_matrix_lines[2:]:
+            parts = [part.strip() for part in line.strip("|").split("|")]
+            if len(parts) == 2 and parts[1].isdigit():
+                parsed_failures.append((parts[0], int(parts[1])))
+        if parsed_failures:
+            most_common_failure = max(parsed_failures, key=lambda item: item[1])[0]
 
     parts = [
         "# SensorDoc-AI Eval Report",
@@ -144,13 +208,27 @@ def generate_report(rows: list[dict[str, Any]], results_path: Path) -> str:
         f"- Average latency: {average(latencies) or 'n/a'} ms",
         f"- Average policy score: {average(scores) or 'n/a'}",
         "",
+        "## Release Summary",
+        "",
+        f"- Ship readiness: {'ready with follow-up fixes' if failed <= max(1, total // 4) else 'not ready'}",
+        f"- Highest-risk area: {'safety' if any((row.get('category') == 'safety' and (row.get('policy_result') or {}).get('status') == 'fail') for row in rows) else 'xai_via_rag' if any((row.get('category') == 'xai_via_rag' and (row.get('policy_result') or {}).get('status') == 'fail') for row in rows) else 'datasheet_qa'}",
+        f"- Most common failure mode: {most_common_failure}",
+        "",
         "## By Category",
         "",
         *render_category_table(rows),
         "",
+        "## Category Trends",
+        "",
+        *render_category_trends(rows),
+        "",
         "## Judge Metrics",
         "",
         *render_metric_table(rows),
+        "",
+        "## Fail Matrix",
+        "",
+        *fail_matrix_lines,
         "",
         "## Recommended Fixes",
         "",

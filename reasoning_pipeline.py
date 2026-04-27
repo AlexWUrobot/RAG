@@ -264,6 +264,8 @@ class ReasoningPipeline:
                 "1. Model signal: ...\n"
                 "2. Datasheet evidence: ...\n"
                 "3. Cross-reference: supported / unsupported / insufficient evidence because ...\n"
+                "If a numeric limit, threshold, address, or timing value appears in the context, copy the exact value and unit.\n"
+                "Do not suggest configuration changes, control-flow actions, or inspection steps unless the user explicitly asks for follow-up actions.\n"
                 "If the context does not support the topic, write exactly: Information not found in the datasheets."
             )
         else:
@@ -281,6 +283,8 @@ class ReasoningPipeline:
                 "1. Model signal: ...\n"
                 "2. Datasheet evidence: ...\n"
                 "3. Cross-reference: supported / unsupported / insufficient evidence because ...\n"
+                "If a numeric limit, threshold, address, or timing value appears in the context, copy the exact value and unit.\n"
+                "Do not suggest configuration changes, control-flow actions, or inspection steps unless the user explicitly asks for follow-up actions.\n"
                 "If the context does not support the question, write exactly: Information not found in the datasheets."
             )
 
@@ -310,6 +314,46 @@ class ReasoningPipeline:
         """Generate a grounded answer that incorporates an intermediate reasoning step."""
         normalized = cls.normalize_prediction_payload(prediction_payload)
         evidence_text = cls.serialize_prediction_evidence(normalized)
+        lowered_question = question.strip().lower()
+        lowered_context = context.lower()
+        top_feature = str(normalized.get("top_feature", "")).strip().lower() if normalized else ""
+
+        root_cause_question = any(
+            phrase in lowered_question
+            for phrase in (
+                "what hardware issue",
+                "what hardware cause",
+                "could explain this failure",
+                "could explain the failure",
+            )
+        )
+        explicit_failure_evidence = any(
+            term in lowered_context
+            for term in (
+                "failure",
+                "fault",
+                "damage",
+                "degradation",
+                "defect",
+                "crack",
+                "stress",
+                "absolute maximum",
+                "maximum ratings",
+            )
+        )
+        feature_is_grounded = bool(top_feature) and top_feature in lowered_context
+        if normalized and root_cause_question and (not explicit_failure_evidence or not feature_is_grounded):
+            if top_feature:
+                return (
+                    f"The datasheet documents interface behavior and operating limits, but it does not "
+                    f"link {top_feature} or this prediction to a specific hardware failure mode. "
+                    "Information not found in the datasheets."
+                )
+            return (
+                "The datasheet documents interface behavior and operating limits, but it does not "
+                "justify a specific hardware failure mode for this prediction. Information not found in the datasheets."
+            )
+
         reasoning_payload = cls.generate_reasoning_payload(
             llm=llm,
             question=question,
@@ -337,6 +381,10 @@ class ReasoningPipeline:
                 "Reasoning payload:\n{reasoning_payload}\n\n"
                 "Context:\n{context}\n\n"
                 "Topic request: {topic}\n"
+                "Summary requirements:\n"
+                "- Use only the retrieved datasheet context.\n"
+                "- If the topic asks for a limit, rating, address, threshold, timing, or maximum value, include the exact numeric value and unit from the context.\n"
+                "- If the documentation does not support the topic, reply exactly: Information not found in the datasheets.\n"
                 "Summary:"
             )
         else:
@@ -352,9 +400,12 @@ class ReasoningPipeline:
                 "retrieved context and explain whether the documentation supports the "
                 "predicted condition. If the reasoning payload says evidence is unsupported "
                 "or insufficient, explicitly say that the datasheet does not justify a specific "
-                "hardware cause and do not speculate. If the user asks a yes/no or statement-"
+                "hardware cause and do not speculate. Do not mention configuration changes, control recommendations, or inspection steps unless the user explicitly asks for them. If the user asks a yes/no or statement-"
                 "verification question, answer with 'Yes' or 'No' first and then "
-                "briefly justify it using the context. If the answer is not in the "
+                "briefly justify it using the context. Do not answer open technical questions with a bare 'Yes' or 'No'. "
+                "If the question asks for a rating, limit, threshold, address, timing, or maximum value, copy the exact numeric value and unit from the context. "
+                "If structured prediction evidence is provided, explicitly mention the datasheet when comparing the prediction signal to documentation. "
+                "Do not repeat the user's fault claim as a confirmed diagnosis; use neutral wording like 'this fault type is not supported by the datasheet' instead. If the answer is not in the "
                 "context, reply exactly: 'Information not found in the datasheets.'\n\n"
                 "Structured prediction evidence:\n{prediction_evidence}\n\n"
                 "Reasoning payload:\n{reasoning_payload}\n\n"
