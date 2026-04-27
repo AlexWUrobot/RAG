@@ -168,6 +168,167 @@ It uses a bounded state graph to:
 
 This keeps tool-use explicit and avoids free-form looping. The graph has fixed nodes and no unbounded recursive retry path.
 
+## Reasoning Pipeline
+
+The repository can also be extended into an explainable-diagnostics workflow: use a predictive model such as XGBoost to detect anomalies or failures, then use RAG to explain the prediction in hardware-engineering language.
+
+This is best understood as **XAI via RAG**:
+
+- XGBoost provides the prediction result and the most influential features.
+- SHAP or LIME extracts feature-level attribution for a specific prediction.
+- A data-to-text layer converts structured features into semantic descriptions.
+- The semantic description becomes the retrieval query for datasheets, specs, and failure-mode references.
+- The LLM compares model evidence with retrieved hardware constraints and produces an actionable diagnostic report.
+
+### Recommended Flow
+
+1. Predict with XGBoost.
+2. Extract top contributing features with SHAP or LIME.
+3. Serialize the structured feature signals into descriptive text.
+4. Use that text as the search query for the RAG system.
+5. Retrieve the relevant datasheet sections, thresholds, interfaces, and failure notes.
+6. Generate a final reasoning report that combines prediction evidence with retrieved hardware knowledge.
+
+### Why This Matters
+
+XGBoost alone can tell you **what** the model predicted, but not always **why that result matters in the hardware domain**.
+
+RAG fills that gap by grounding the model's important features against documentation such as:
+
+- sensor operating limits
+- noise thresholds
+- package constraints
+- interface tolerances
+- known failure modes from datasheets or engineering notes
+
+This turns a black-box output into a report that is more useful for hardware engineers.
+
+### Example Data-to-Text Conversion
+
+Structured prediction output:
+
+```json
+{
+  "prediction": "Sensor Failure",
+  "top_feature": "acc_z_std",
+  "feature_value": 0.05,
+  "baseline": 0.02
+}
+```
+
+Semantic description used for retrieval:
+
+```text
+The model predicted Sensor Failure because the standard deviation of the Z-axis accelerometer reached 0.05g, which is above the normal baseline of 0.02g.
+```
+
+Possible retrieval query derived from that description:
+
+```text
+Z-axis accelerometer noise threshold sensor failure modes package damage solder crack
+```
+
+### Final Reasoning Output
+
+The final report can combine:
+
+- prediction result from XGBoost
+- local explanation from SHAP or LIME
+- retrieved datasheet evidence from the RAG system
+
+Example report:
+
+```text
+The system classified this unit as Sensor Failure. The dominant factor is abnormal Z-axis noise at 0.05g. Retrieved hardware documentation indicates that this level exceeds the expected tolerance band and may correlate with package stress or solder-joint degradation. Recommended follow-up inspection: verify Z-axis signal integrity and inspect the relevant package pins and solder connections.
+```
+
+### Suggested Implementation Surface
+
+For this repository, the clean extension path is:
+
+- keep `rag_pipeline.py` as the retrieval and grounded-generation layer
+- keep `langgraph_router.py` as the routing and guardrail layer
+- use `reasoning_pipeline.py` as the prototype reasoning bridge that:
+  - accepts prediction output from XGBoost
+  - serializes SHAP or LIME style evidence into text
+  - builds a retrieval-oriented query from structured evidence
+  - helps `rag_pipeline.py` produce a grounded explanation report
+
+This design keeps prediction, explanation, retrieval, and final reasoning loosely coupled and easier to debug.
+
+Example usage:
+
+```python
+from rag_pipeline import query_sensor_info
+
+prediction_payload = {
+  "model_type": "XGBoost",
+    "prediction": "Sensor Failure",
+  "predicted_label": "Sensor Failure",
+  "confidence": 0.91,
+  "top_feature": "acc_z_std",
+  "feature_value": 0.05,
+  "baseline": 0.02,
+  "shap_attributions": [
+    {
+      "feature": "acc_z_std",
+      "contribution": 0.41,
+      "value": 0.05,
+      "baseline": 0.02,
+      "unit": "g",
+    },
+    {
+      "feature": "temp_drift",
+      "contribution": 0.12,
+      "value": 3.6,
+      "unit": "C",
+    },
+  ],
+}
+
+answer = query_sensor_info(
+    "What hardware issue could explain this failure?",
+    prediction_payload=prediction_payload,
+)
+print(answer)
+```
+
+### Standard SHAP Payload Schema
+
+The canonical payload shape for the reasoning bridge is:
+
+```json
+{
+  "model_type": "XGBoost",
+  "prediction": "Sensor Failure",
+  "predicted_label": "Sensor Failure",
+  "confidence": 0.91,
+  "top_feature": "acc_z_std",
+  "feature_value": 0.05,
+  "baseline": 0.02,
+  "shap_attributions": [
+    {
+      "feature": "acc_z_std",
+      "contribution": 0.41,
+      "value": 0.05,
+      "baseline": 0.02,
+      "unit": "g"
+    }
+  ],
+  "raw_signal": {
+    "sensor_id": "imu-7",
+    "sample_window_ms": 500
+  }
+}
+```
+
+Notes:
+
+- `shap_attributions` is the preferred normalized field.
+- Older shapes like `shap_values: {feature: contribution}` are still accepted and normalized internally.
+- `feature_contributions` is also accepted as a fallback alias.
+- `lime_explanation` can be supplied alongside SHAP data when available.
+
 ## Secret Management
 
 - Never commit API keys to Git or upload them to GitHub.

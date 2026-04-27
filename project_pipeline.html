@@ -224,22 +224,32 @@
       <rect x="1132" y="728" width="128" height="34" class="pill" />
       <text x="1160" y="750" class="pill-text">rerank</text>
 
-      <text x="1518" y="170" class="section-label">Outputs</text>
-      <rect x="1446" y="236" width="320" height="156" class="box green" />
-      <text x="1492" y="278" class="box-title">Grounded Answer</text>
-      <text x="1472" y="318" class="box-body">Technical response from</text>
-      <text x="1472" y="348" class="box-body">retrieved datasheet context only</text>
+      <text x="1466" y="170" class="section-label">Reasoning + Outputs</text>
+      <rect x="1446" y="208" width="320" height="236" class="box purple" />
+      <text x="1492" y="250" class="box-title">Reasoning Pipeline</text>
+      <text x="1472" y="286" class="box-body">1. XGBoost predicts failure</text>
+      <text x="1472" y="316" class="box-body">2. SHAP or LIME extracts</text>
+      <text x="1472" y="346" class="box-body">   top contributing features</text>
+      <text x="1472" y="376" class="box-body">3. Data-to-text builds</text>
+      <text x="1472" y="406" class="box-body">   semantic retrieval query</text>
+      <text x="1472" y="436" class="box-body">4. RAG grounds prediction</text>
+      <text x="1472" y="466" class="box-body">   with datasheet evidence</text>
 
-      <rect x="1446" y="426" width="320" height="142" class="box purple" />
-      <text x="1492" y="462" class="box-title">Safe Fallback</text>
-      <text x="1492" y="498" class="box-body">Out-of-scope refusal or</text>
-      <text x="1492" y="528" class="box-body">prompt-injection block</text>
+      <rect x="1446" y="478" width="320" height="140" class="box green" />
+      <text x="1492" y="520" class="box-title">Grounded Answer</text>
+      <text x="1472" y="560" class="box-body">Technical response from</text>
+      <text x="1472" y="590" class="box-body">retrieved datasheet context only</text>
 
-      <rect x="1446" y="610" width="320" height="156" class="box orange" />
-      <text x="1472" y="646" class="box-title">Interactive Demo</text>
-      <text x="1472" y="676" class="box-title">Paths</text>
-      <text x="1472" y="714" class="box-body">datasheet question</text>
-      <text x="1472" y="744" class="box-body">out-of-scope question</text>
+      <rect x="1446" y="646" width="320" height="134" class="box purple" />
+      <text x="1492" y="688" class="box-title">Safe Fallback</text>
+      <text x="1492" y="724" class="box-body">Out-of-scope refusal or</text>
+      <text x="1492" y="754" class="box-body">prompt-injection block</text>
+
+      <rect x="1446" y="806" width="320" height="156" class="box orange" />
+      <text x="1472" y="848" class="box-title">Interactive Demo</text>
+      <text x="1472" y="878" class="box-title">Paths</text>
+      <text x="1472" y="916" class="box-body">datasheet question</text>
+      <text x="1472" y="946" class="box-body">out-of-scope question</text>
 
       <path d="M370 277 C 400 277, 398 277, 436 277" class="arrow" />
       <text x="372" y="258" class="arrow-label">ingest</text>
@@ -253,11 +263,13 @@
       <path d="M796 664 C 842 664, 888 664, 938 664" class="arrow" />
       <text x="804" y="644" class="arrow-label">datasheet route</text>
 
-      <path d="M1346 360 C 1390 360, 1422 330, 1446 328" class="arrow" />
+      <path d="M1346 360 C 1390 360, 1422 344, 1446 344" class="arrow" />
       <text x="1358" y="334" class="arrow-label">answer</text>
 
-      <path d="M796 744 C 1010 872, 1210 872, 1446 688" class="arrow" />
-      <text x="1106" y="884" class="arrow-label">out-of-scope or blocked</text>
+      <path d="M796 744 C 1010 826, 1210 826, 1446 710" class="arrow" />
+      <text x="1114" y="838" class="arrow-label">out-of-scope or blocked</text>
+
+      <path d="M1606 444 C 1606 456, 1606 464, 1606 478" class="arrow" />
 
       <path d="M792 260 C 850 260, 904 300, 938 300" class="arrow" />
       <text x="804" y="240" class="arrow-label">existing index</text>
