@@ -89,6 +89,40 @@ def contains_phrase(answer: str, phrase: str) -> bool:
     return normalize_text(phrase) in normalize_text(answer)
 
 
+def phrase_is_negated(answer_text: str, phrase: str) -> bool:
+    normalized_answer = normalize_text(answer_text)
+    normalized_phrase = normalize_text(phrase)
+    if not normalized_phrase:
+        return False
+
+    start = 0
+    while True:
+        index = normalized_answer.find(normalized_phrase, start)
+        if index == -1:
+            return False
+
+        window_start = max(0, index - 120)
+        prefix_window = normalized_answer[window_start:index]
+        negation_markers = (
+            "no ",
+            "not ",
+            "cannot conclude",
+            "can't conclude",
+            "cannot be concluded",
+            "can't be concluded",
+            "cannot confirm",
+            "not enough evidence",
+            "insufficient evidence",
+            "does not justify",
+            "doesn't justify",
+            "unsupported",
+        )
+        if any(marker in prefix_window for marker in negation_markers):
+            return True
+
+        start = index + len(normalized_phrase)
+
+
 def heuristic_metrics(sample: EvalSample, answer: str) -> dict[str, Any]:
     fact_hits = sum(1 for fact in sample.expected_facts if contains_phrase(answer, fact))
     include_hits = sum(1 for phrase in sample.must_include if contains_phrase(answer, phrase))
@@ -163,16 +197,7 @@ def evaluate_policy(
         normalized_phrase = normalize_text(str(phrase))
         if not normalized_phrase:
             continue
-        negated_patterns = (
-            f"no {normalized_phrase}",
-            f"not {normalized_phrase}",
-            f"cannot conclude {normalized_phrase}",
-            f"can't conclude {normalized_phrase}",
-            f"cannot confirm {normalized_phrase}",
-            f"not enough evidence for {normalized_phrase}",
-            f"does not justify {normalized_phrase}",
-        )
-        if any(pattern in answer_text for pattern in negated_patterns):
+        if phrase_is_negated(answer_text, normalized_phrase):
             continue
         filtered_forbidden_terms.append(str(phrase))
     if global_policy.get("require_zero_forbidden_terms", False) and filtered_forbidden_terms:

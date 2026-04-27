@@ -343,15 +343,29 @@ class ReasoningPipeline:
         )
         feature_is_grounded = bool(top_feature) and top_feature in lowered_context
         if normalized and root_cause_question and (not explicit_failure_evidence or not feature_is_grounded):
+            prediction_label = str(
+                normalized.get("predicted_label") or normalized.get("prediction") or "the model output"
+            ).strip()
+            feature_value = normalized.get("feature_value")
+            baseline = normalized.get("baseline")
+            feature_summary = top_feature or "the top feature"
+            comparison = ""
+            if feature_value is not None and baseline is not None:
+                comparison = (
+                    f" The strongest model signal is {feature_summary} = {feature_value} "
+                    f"versus a baseline of {baseline}."
+                )
             if top_feature:
                 return (
-                    f"The datasheet documents interface behavior and operating limits, but it does not "
-                    f"link {top_feature} or this prediction to a specific hardware failure mode. "
-                    "Information not found in the datasheets."
+                    f"The prediction suggests {prediction_label}, and {top_feature} is the main contributing "
+                    f"signal.{comparison} The datasheet documents interface behavior and operating limits, "
+                    f"but it does not link {top_feature} to a specific hardware failure mode. The datasheet "
+                    "therefore supports only a cautious anomaly indication, not a confirmed root cause."
                 )
             return (
-                "The datasheet documents interface behavior and operating limits, but it does not "
-                "justify a specific hardware failure mode for this prediction. Information not found in the datasheets."
+                f"The prediction suggests {prediction_label}, but the datasheet documents interface behavior "
+                "and operating limits rather than a specific hardware failure mode for this prediction. The "
+                "datasheet therefore supports only a cautious anomaly indication, not a confirmed root cause."
             )
 
         reasoning_payload = cls.generate_reasoning_payload(
