@@ -6,6 +6,7 @@ project_metadata:
 
 rag_module:
   pdf_source_path: "./Document/"
+  internal_knowledge_path: "./InternalKnowledge/"
   vector_store_backend: "chroma" # Options: chroma, faiss
   vector_store_paths:
     chroma: "./vector_store/chroma_db"

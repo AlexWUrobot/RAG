@@ -375,6 +375,7 @@ class ReasoningPipeline:
                 "provided, use it only as supporting signal and compare it against "
                 "the documentation. If the reasoning payload says evidence is unsupported "
                 "or insufficient, do not infer a hardware cause beyond the retrieved context. "
+                "If internal engineering rules or FA notes are present, you may use them and should label them as internal knowledge. "
                 "If the context is not relevant to the topic, "
                 "reply exactly: 'Information not found in the datasheets.'\n\n"
                 "Structured prediction evidence:\n{prediction_evidence}\n\n"
@@ -382,9 +383,11 @@ class ReasoningPipeline:
                 "Context:\n{context}\n\n"
                 "Topic request: {topic}\n"
                 "Summary requirements:\n"
-                "- Use only the retrieved datasheet context.\n"
+                "- Use only the retrieved context.\n"
+                "- If internal knowledge is present, explicitly distinguish it from datasheet evidence.\n"
+                "- If an internal rule directly answers the topic and includes a rationale sentence, state both the rule and the rationale explicitly.\n"
                 "- If the topic asks for a limit, rating, address, threshold, timing, or maximum value, include the exact numeric value and unit from the context.\n"
-                "- If the documentation does not support the topic, reply exactly: Information not found in the datasheets.\n"
+                "- If neither datasheet nor internal knowledge supports the topic, reply exactly: Information not found in the datasheets.\n"
                 "Summary:"
             )
         else:

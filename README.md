@@ -394,3 +394,47 @@ Each JSONL row can include:
 - `must_include`
 - `must_not_include`
 - `judge_focus`
+
+## Prediction Diagnosis API
+
+For practical failure analysis, use the dedicated `query_prediction_diagnosis(...)` API instead of the plain datasheet QA path.
+
+This diagnosis API is different in three ways:
+
+- Input shape: it accepts `sensor_data_summary`, `xgboost_output`, and `user_query`
+- Retrieval priority: it searches internal FA reports, engineering rules, and notes before generic datasheet chunks
+- Prompt contract: it uses a stricter failure-analysis prompt with explicit sections for observation, specification conflict, hypothesis, and recommended action
+
+Example:
+
+```python
+from rag_pipeline import query_prediction_diagnosis
+
+answer = query_prediction_diagnosis(
+  sensor_data_summary="Z-axis noise 0.05g, Temp 40C, repeated I2C retries",
+  xgboost_output={
+    "label": "Failure",
+    "prediction": "Failure",
+    "top_feature": "acc_z_std",
+    "confidence": 0.92,
+  },
+  user_query="What is the likely diagnosis and what should the engineer check next?",
+)
+print(answer)
+```
+
+### Internal Knowledge Sources
+
+The diagnosis pipeline can ingest non-public knowledge from [InternalKnowledge](InternalKnowledge):
+
+- FA reports
+- engineering rules
+- troubleshooting notes
+
+Supported internal file types are Markdown and text files. After adding or updating these files, rebuild the store:
+
+```bash
+python rag_pipeline.py --ingest
+```
+
+This lets future employees add rules such as UART limitations or archived FA observations without editing Python code.
