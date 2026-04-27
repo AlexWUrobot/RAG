@@ -4,6 +4,12 @@ SensorDoc-AI is a hardware-document RAG project for parsing sensor datasheets, p
 
 The RAG pipeline now supports a provider switch with `ollama` as the default runtime and `openai` as an optional fallback.
 
+## Tutorial Video
+
+Watch the project walkthrough here:
+
+https://youtu.be/_aEVhg6LiHE
+
 ## Features
 
 - PDF ingestion with PyMuPDF
