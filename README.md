@@ -341,3 +341,47 @@ Notes:
 - If you use `openai`, `OPENAI_API_KEY` is required.
 - If you use `ollama`, the project works without an OpenAI key.
 - BM25 is rebuilt from the source PDFs when loading an existing vector store.
+
+## Evaluation
+
+The repository includes a first-pass benchmark in [eval_dataset.jsonl](eval_dataset.jsonl), a formal policy in [eval_policy.json](eval_policy.json), a batch runner in [eval_runner.py](eval_runner.py), and a Markdown report generator in [eval_report.py](eval_report.py).
+
+Run the baseline eval pass:
+
+```bash
+python eval_runner.py
+```
+
+Run the eval pass with LLM-as-a-judge scoring:
+
+```bash
+python eval_runner.py --judge
+```
+
+Generate a readable Markdown report from JSONL results:
+
+```bash
+python eval_report.py --results eval_results.jsonl --output eval_report.md
+```
+
+The judge rubric is defined in [llm_judge_prompt.md](llm_judge_prompt.md) and is specialized for this project's two use cases:
+
+- datasheet-grounded technical QA
+- XAI via RAG, where model evidence must support retrieval but must not be treated as proof without datasheet backing
+
+The pass/fail policy is formalized in [eval_policy.json](eval_policy.json):
+
+- heuristic gates: expected-fact hit rate, must-include hit rate, forbidden-term violations
+- category-specific judge thresholds for datasheet QA, XAI via RAG, and safety
+- an overall score threshold per category
+- `incomplete` status when final policy judgment is requested but no LLM judge result is present
+
+Each JSONL row can include:
+
+- `question`
+- `prediction_payload`
+- `expected_answer`
+- `expected_facts`
+- `must_include`
+- `must_not_include`
+- `judge_focus`

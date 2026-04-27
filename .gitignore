@@ -3,4 +3,6 @@
 __pycache__/
 *.pyc
 vector_store/
+eval_results*.jsonl
+eval_report*.md
 .DS_Store
