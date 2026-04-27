@@ -12,13 +12,21 @@ DEFAULT_RESULTS_PATH = Path("eval_results.jsonl")
 DEFAULT_REPORT_PATH = Path("eval_report.md")
 
 
+def log_progress(message: str) -> None:
+    print(f"[eval_report] {message}")
+
+
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    log_progress(f"Loading results from {path}")
     with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
+        for index, line in enumerate(handle, start=1):
             stripped = line.strip()
             if stripped:
                 rows.append(json.loads(stripped))
+            if index % 10 == 0:
+                log_progress(f"Parsed {index} lines")
+    log_progress(f"Loaded {len(rows)} eval rows")
     return rows
 
 
@@ -172,6 +180,7 @@ def render_top_fixes(rows: list[dict[str, Any]]) -> list[str]:
 
 
 def generate_report(rows: list[dict[str, Any]], results_path: Path) -> str:
+    log_progress("Computing summary statistics")
     total = len(rows)
     passed = sum(1 for row in rows if (row.get("policy_result") or {}).get("status") == "pass")
     failed = sum(1 for row in rows if (row.get("policy_result") or {}).get("status") == "fail")
@@ -192,6 +201,8 @@ def generate_report(rows: list[dict[str, Any]], results_path: Path) -> str:
                 parsed_failures.append((parts[0], int(parts[1])))
         if parsed_failures:
             most_common_failure = max(parsed_failures, key=lambda item: item[1])[0]
+
+    log_progress("Rendering report sections")
 
     parts = [
         "# SensorDoc-AI Eval Report",
@@ -249,8 +260,23 @@ def main() -> None:
     args = parser.parse_args()
 
     rows = load_jsonl(args.results)
+    log_progress("Generating markdown report")
     report = generate_report(rows, args.results)
+    log_progress(f"Writing report to {args.output}")
     args.output.write_text(report, encoding="utf-8")
+    passed = sum(1 for row in rows if (row.get("policy_result") or {}).get("status") == "pass")
+    failed = sum(1 for row in rows if (row.get("policy_result") or {}).get("status") == "fail")
+    incomplete = sum(1 for row in rows if (row.get("policy_result") or {}).get("status") == "incomplete")
+    avg_score_values = [
+        float((row.get("policy_result") or {}).get("overall_score"))
+        for row in rows
+        if isinstance((row.get("policy_result") or {}).get("overall_score"), (int, float))
+    ]
+    log_progress(
+        "Done: "
+        f"total={len(rows)}, pass={passed}, fail={failed}, incomplete={incomplete}, "
+        f"avg_score={average(avg_score_values) or 'n/a'}"
+    )
     print(json.dumps({"results": str(args.results), "report": str(args.output), "rows": len(rows)}, ensure_ascii=False, indent=2))
 
 

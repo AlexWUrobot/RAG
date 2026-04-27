@@ -28,6 +28,10 @@ DEFAULT_JUDGE_PROMPT_PATH = Path("llm_judge_prompt.md")
 DEFAULT_POLICY_PATH = Path("eval_policy.json")
 
 
+def log_progress(message: str) -> None:
+    print(f"[eval_runner] {message}")
+
+
 @dataclass
 class EvalSample:
     sample_id: str
@@ -56,12 +60,14 @@ class EvalSample:
 
 
 def load_policy(path: Path) -> dict[str, Any]:
+    log_progress(f"Loading policy from {path}")
     with path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
 def load_jsonl(path: Path) -> list[EvalSample]:
     samples: list[EvalSample] = []
+    log_progress(f"Loading dataset from {path}")
     with path.open("r", encoding="utf-8") as handle:
         for index, line in enumerate(handle, start=1):
             stripped = line.strip()
@@ -69,6 +75,9 @@ def load_jsonl(path: Path) -> list[EvalSample]:
                 continue
             payload = json.loads(stripped)
             samples.append(EvalSample.from_dict(payload, index))
+            if index % 10 == 0:
+                log_progress(f"Parsed {index} dataset lines")
+    log_progress(f"Loaded {len(samples)} eval samples")
     return samples
 
 
@@ -291,10 +300,14 @@ def run_eval(
 ) -> dict[str, Any]:
     samples = load_jsonl(dataset_path)
     policy = load_policy(policy_path)
+    log_progress("Initializing RAG pipeline")
     pipeline = RAGPipeline()
     pipeline.load_existing()
+    log_progress("Loaded existing retrieval index")
 
     judge_prompt = load_judge_prompt(judge_prompt_path) if judge_enabled else ""
+    if judge_enabled:
+        log_progress(f"Loaded judge prompt from {judge_prompt_path}")
 
     summary = {
         "total_samples": len(samples),
@@ -306,13 +319,19 @@ def run_eval(
     }
 
     with output_path.open("w", encoding="utf-8") as handle:
-        for sample in samples:
+        for index, sample in enumerate(samples, start=1):
+            log_progress(
+                f"Running sample {index}/{len(samples)}: id={sample.sample_id}, category={sample.category}"
+            )
             start_time = time.perf_counter()
             answer = pipeline.query_sensor_info(
                 sample.question,
                 prediction_payload=sample.prediction_payload,
             )
             latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
+            log_progress(
+                f"Finished answer for {sample.sample_id} in {latency_ms} ms"
+            )
 
             heuristics = heuristic_metrics(sample, answer)
             result: dict[str, Any] = {
@@ -327,9 +346,12 @@ def run_eval(
 
             if judge_enabled:
                 try:
+                    log_progress(f"Judging sample {sample.sample_id}")
                     result["llm_judge"] = run_judge(pipeline, judge_prompt, sample, answer)
+                    log_progress(f"Judge completed for {sample.sample_id}")
                 except Exception as exc:
                     result["llm_judge_error"] = str(exc)
+                    log_progress(f"Judge failed for {sample.sample_id}: {exc}")
 
             result["policy_result"] = evaluate_policy(
                 sample=sample,
@@ -337,11 +359,22 @@ def run_eval(
                 judge=result.get("llm_judge"),
                 policy=policy,
             )
+            log_progress(
+                f"Policy status for {sample.sample_id}: {result['policy_result']['status']}"
+            )
 
             handle.write(json.dumps(result, ensure_ascii=False) + "\n")
             summary["category_counts"][sample.category] = summary["category_counts"].get(sample.category, 0) + 1
             policy_status = result["policy_result"]["status"]
             summary["policy_status_counts"][policy_status] = summary["policy_status_counts"].get(policy_status, 0) + 1
+
+    log_progress(
+        "Done: "
+        f"total={summary['total_samples']}, "
+        f"pass={summary['policy_status_counts']['pass']}, "
+        f"fail={summary['policy_status_counts']['fail']}, "
+        f"incomplete={summary['policy_status_counts']['incomplete']}"
+    )
 
     return summary
 
